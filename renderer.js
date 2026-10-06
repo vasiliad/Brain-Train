@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 // ==========================================
 // НАСТРОЙКИ ОБЛАКА FIREBASE
@@ -139,17 +139,28 @@ const userNameInput = document.getElementById('userNameInput');
 const startGameBtn = document.getElementById('startGameBtn');
 
 let userIP = 'unknown';
+let ipNames = [];        // names previously seen on this IP (shared across devices/people)
+let activeName = null;   // profile chosen on the welcome screen
+const MAX_SESSIONS = 500; // keep the Firestore document well under its 1 MB limit
+
+const profileChoices = document.getElementById('profileChoices');
+const notMeBtn = document.getElementById('notMeBtn');
+
+function normalizeName(n) {
+  return (n || '').replace(/[\/\\]/g, '').replace(/\s+/g, ' ').trim().slice(0, 20);
+}
 
 // Initialize
 async function init() {
   setupModeSelector();
   setupEventListeners();
-  
-  // Show loading state
+
   welcomeTitle.textContent = "Загрузка...";
   welcomeMessage.textContent = "Проверяем профиль...";
   nameInputContainer.style.display = 'none';
   startGameBtn.style.display = 'none';
+  notMeBtn.style.display = 'none';
+  profileChoices.innerHTML = '';
 
   await checkUserByIP();
 }
@@ -163,64 +174,110 @@ async function checkUserByIP() {
     console.error("Could not fetch IP", e);
   }
 
-  let savedName = localStorage.getItem('brainTrainUserName');
-
-  // If no local name, try to fetch from Firebase using IP
-  if (!savedName && useFirebase && db && userIP !== 'unknown') {
+  if (useFirebase && db && userIP !== 'unknown') {
     try {
-      const ipRef = doc(db, "ip_mappings", userIP);
-      const ipSnap = await getDoc(ipRef);
+      const ipSnap = await getDoc(doc(db, "ip_mappings", userIP));
       if (ipSnap.exists()) {
-        savedName = ipSnap.data().name;
-        localStorage.setItem('brainTrainUserName', savedName);
+        const d = ipSnap.data();
+        // Supports old format {name} and new format {names: []}
+        ipNames = Array.isArray(d.names) ? d.names : (d.name ? [d.name] : []);
       }
-    } catch(e) {
+    } catch (e) {
       console.error(e);
     }
   }
 
-  startGameBtn.style.display = 'inline-block';
-
+  const savedName = localStorage.getItem('brainTrainUserName');
   if (savedName) {
-    welcomeTitle.textContent = `Привет, ${savedName}!`;
-    welcomeMessage.textContent = "Мы рады, что ты вернулся, чтобы дальше тренировать свою память.";
-    nameInputContainer.style.display = 'none';
+    showGreeting(savedName);
+  } else if (ipNames.length === 1) {
+    showGreeting(ipNames[0]);
+  } else if (ipNames.length > 1) {
+    showChooser();
   } else {
-    welcomeTitle.textContent = "Добро пожаловать в Brain Train!";
-    welcomeMessage.textContent = "Как мы можем к тебе обращаться?";
-    nameInputContainer.style.display = 'block';
+    showNewPlayer();
   }
 }
 
-async function startGameFlow() {
-  let name = localStorage.getItem('brainTrainUserName');
-  if (!name && nameInputContainer.style.display !== 'none') {
-    name = userNameInput.value.trim();
-    if (name) {
-      localStorage.setItem('brainTrainUserName', name);
-    }
-  }
+function showGreeting(name) {
+  activeName = name;
+  profileChoices.innerHTML = '';
+  welcomeTitle.textContent = `Привет, ${name}!`;
+  welcomeMessage.textContent = "Мы рады, что ты вернулся, чтобы дальше тренировать свою память.";
+  nameInputContainer.style.display = 'none';
+  startGameBtn.style.display = 'inline-block';
+  notMeBtn.style.display = 'inline-block';
+}
 
-  // Always (re)save the IP -> name link, including users who already had a
-  // name in localStorage before IP recognition existed.
-  if (name && useFirebase && db && userIP !== 'unknown') {
+function showChooser() {
+  activeName = null;
+  welcomeTitle.textContent = "Кто играет?";
+  welcomeMessage.textContent = "С этого подключения уже играли несколько человек. Выбери себя:";
+  nameInputContainer.style.display = 'none';
+  startGameBtn.style.display = 'none';
+  notMeBtn.style.display = 'none';
+  profileChoices.innerHTML = '';
+  ipNames.forEach(n => {
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.textContent = n;
+    b.addEventListener('click', () => { localStorage.setItem('brainTrainUserName', n); showGreeting(n); });
+    profileChoices.appendChild(b);
+  });
+  const nb = document.createElement('button');
+  nb.className = 'btn btn-ghost';
+  nb.textContent = '+ Я новый игрок';
+  nb.addEventListener('click', showNewPlayer);
+  profileChoices.appendChild(nb);
+}
+
+function showNewPlayer() {
+  activeName = null;
+  profileChoices.innerHTML = '';
+  welcomeTitle.textContent = "Добро пожаловать в Brain Train!";
+  welcomeMessage.textContent = "Как мы можем к тебе обращаться?";
+  nameInputContainer.style.display = 'block';
+  startGameBtn.style.display = 'inline-block';
+  notMeBtn.style.display = ipNames.length > 0 ? 'inline-block' : 'none';
+  notMeBtn.textContent = 'Выбрать из списка';
+  userNameInput.focus();
+}
+
+function handleNotMe() {
+  localStorage.removeItem('brainTrainUserName');
+  const others = ipNames;
+  if (others.length > 0) showChooser(); else showNewPlayer();
+  notMeBtn.textContent = 'Это не я';
+}
+
+async function startGameFlow() {
+  let name = activeName || normalizeName(userNameInput.value);
+  if (!name) {
+    userNameInput.placeholder = "Введи имя, чтобы начать";
+    userNameInput.focus();
+    return;
+  }
+  localStorage.setItem('brainTrainUserName', name);
+
+  // Remember this person on this IP (several people can share one IP)
+  if (useFirebase && db && userIP !== 'unknown') {
     try {
-      await setDoc(doc(db, "ip_mappings", userIP), { name: name, updated: new Date().toISOString() });
+      await setDoc(doc(db, "ip_mappings", userIP), {
+        names: arrayUnion(name),
+        updated: new Date().toISOString()
+      }, { merge: true });
     } catch (e) {
       console.error("IP mapping save error:", e);
     }
   }
 
-  if (!name) name = "Гость";
   currentUserName = name;
 
-  // Show loading state on button
-  const originalBtnText = startGameBtn.textContent;
   startGameBtn.textContent = "Загрузка профиля...";
   startGameBtn.disabled = true;
 
   await loadSessions();
-  
+
   welcomeScreen.style.display = 'none';
   mainApp.style.display = 'flex';
   startNewGame();
@@ -449,6 +506,7 @@ function checkAnswer(userInput) {
     attempts: trainerAttempts + 1
   };
   sessions.push(session);
+  if (sessions.length > MAX_SESSIONS) sessions = sessions.slice(-MAX_SESSIONS);
   saveSessions();
 
   trainerAttempts++;
@@ -573,6 +631,7 @@ function closeResultsModal() {
 // Event Listeners
 function setupEventListeners() {
   startGameBtn.addEventListener('click', startGameFlow);
+  notMeBtn.addEventListener('click', handleNotMe);
   userNameInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') startGameFlow();
   });
