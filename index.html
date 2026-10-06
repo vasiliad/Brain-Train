@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Brain Train - Memory Test</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Welcome Screen -->
+  <div id="welcomeScreen" class="welcome-screen">
+    <div class="welcome-content">
+      <h2 id="welcomeTitle">Добро пожаловать в Brain Train!</h2>
+      <p id="welcomeMessage">Как мы можем к тебе обращаться?</p>
+      <div id="nameInputContainer">
+        <input type="text" id="userNameInput" placeholder="Твое имя" maxlength="20">
+      </div>
+      <button id="startGameBtn" class="btn btn-primary">Начать тренировку</button>
+    </div>
+  </div>
+
+  <div class="app" id="mainApp" style="display: none;">
+    <header class="header">
+      <h1>Brain Train</h1>
+      <div class="mode-selector">
+        <button id="modeNormal" class="btn btn-primary active">Обычный</button>
+        <button id="modeTrainer" class="btn btn-ghost">Тренировка</button>
+      </div>
+      <button id="resultsBtn" class="btn btn-secondary" aria-label="Показать результаты">Результаты</button>
+    </header>
+
+    <main class="main">
+      <!-- View State - Showing the number -->
+      <section id="viewState" class="game-state active">
+        <div class="timer-container">
+          <div class="timer-ring" role="timer" aria-live="polite">
+            <svg class="timer-svg" viewBox="0 0 100 100">
+              <circle class="timer-bg" cx="50" cy="50" r="45"></circle>
+              <circle class="timer-progress" cx="50" cy="50" r="45" stroke-dasharray="283" stroke-dashoffset="0"></circle>
+            </svg>
+            <span id="timerDisplay" class="timer-text">60</span>
+          </div>
+        </div>
+
+        <div class="number-display" id="numberDisplay" aria-label="Запоминайте это число">
+          <span class="number-label">Запомните число:</span>
+          <div class="digits" id="digitsDisplay"></div>
+          <div id="attemptCounter" class="attempt-counter" style="display: none;"></div>
+        </div>
+
+        <div class="actions">
+          <button id="readyBtn" class="btn btn-primary">Готов ответить</button>
+        </div>
+
+        <p class="instruction">У вас есть 60 секунд. Нажмите «Готов ответить», когда запомните.</p>
+      </section>
+
+      <!-- Input State - User enters the number -->
+      <section id="inputState" class="game-state">
+        <div class="number-display">
+          <span class="number-label">Введите запомненное число:</span>
+          <div class="input-digits" id="inputDigits">
+            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Цифра 1">
+            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Цифра 2">
+            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Цифра 3">
+            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Цифра 4">
+            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Цифра 5">
+            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Цифра 6">
+            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Цифра 7">
+            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Цифра 8">
+            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Цифра 9">
+            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Цифра 10">
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="submitBtn" class="btn btn-primary">Проверить</button>
+          <button id="skipBtn" class="btn btn-ghost">Пропустить</button>
+        </div>
+
+        <p class="instruction">Введите все 10 цифр и нажмите «Проверить».</p>
+      </section>
+
+      <!-- Result State - Show correctness -->
+      <section id="resultState" class="game-state">
+        <div class="result-display" id="resultDisplay"></div>
+        <div id="trainerInfo" class="trainer-info" style="display: none;"></div>
+        <div class="actions">
+          <button id="nextBtn" class="btn btn-primary">Следующее число</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="stats">
+        <span id="statsCorrect">Правильно: 0</span>
+        <span id="statsTotal">Всего: 0</span>
+        <span id="statsStreak">Серия: 0</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Results Modal -->
+  <dialog id="resultsModal" class="modal">
+    <div class="modal-content">
+      <header class="modal-header">
+        <h2>Результаты тестирования</h2>
+        <button id="closeModal" class="btn btn-ghost btn-icon" aria-label="Закрыть">✕</button>
+      </header>
+      <div class="modal-body">
+        <div class="results-summary">
+          <div class="stat-card correct">
+            <span class="stat-value" id="modalCorrect">0</span>
+            <span class="stat-label">Правильно</span>
+          </div>
+          <div class="stat-card incorrect">
+            <span class="stat-value" id="modalIncorrect">0</span>
+            <span class="stat-label">Неправильно</span>
+          </div>
+          <div class="stat-card total">
+            <span class="stat-value" id="modalTotal">0</span>
+            <span class="stat-label">Всего игр</span>
+          </div>
+          <div class="stat-card accuracy">
+            <span class="stat-value" id="modalAccuracy">0%</span>
+            <span class="stat-label">Точность</span>
+          </div>
+        </div>
+        <div class="results-history">
+          <h3>История сессий</h3>
+          <div id="historyList" class="history-list"></div>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <script type="module" src="renderer.js"></script>
+</body>
+</html>
