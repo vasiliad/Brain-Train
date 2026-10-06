@@ -138,15 +138,49 @@ const nameInputContainer = document.getElementById('nameInputContainer');
 const userNameInput = document.getElementById('userNameInput');
 const startGameBtn = document.getElementById('startGameBtn');
 
+let userIP = 'unknown';
+
 // Initialize
-function init() {
+async function init() {
   setupModeSelector();
   setupEventListeners();
-  checkUser();
+  
+  // Show loading state
+  welcomeTitle.textContent = "Загрузка...";
+  welcomeMessage.textContent = "Проверяем профиль...";
+  nameInputContainer.style.display = 'none';
+  startGameBtn.style.display = 'none';
+
+  await checkUserByIP();
 }
 
-function checkUser() {
-  const savedName = localStorage.getItem('brainTrainUserName');
+async function checkUserByIP() {
+  try {
+    const res = await fetch('https://api.ipify.org?format=json');
+    const data = await res.json();
+    userIP = data.ip;
+  } catch (e) {
+    console.error("Could not fetch IP", e);
+  }
+
+  let savedName = localStorage.getItem('brainTrainUserName');
+
+  // If no local name, try to fetch from Firebase using IP
+  if (!savedName && useFirebase && db && userIP !== 'unknown') {
+    try {
+      const ipRef = doc(db, "ip_mappings", userIP);
+      const ipSnap = await getDoc(ipRef);
+      if (ipSnap.exists()) {
+        savedName = ipSnap.data().name;
+        localStorage.setItem('brainTrainUserName', savedName);
+      }
+    } catch(e) {
+      console.error(e);
+    }
+  }
+
+  startGameBtn.style.display = 'inline-block';
+
   if (savedName) {
     welcomeTitle.textContent = `Привет, ${savedName}!`;
     welcomeMessage.textContent = "Мы рады, что ты вернулся, чтобы дальше тренировать свою память.";
@@ -154,6 +188,7 @@ function checkUser() {
   } else {
     welcomeTitle.textContent = "Добро пожаловать в Brain Train!";
     welcomeMessage.textContent = "Как мы можем к тебе обращаться?";
+    nameInputContainer.style.display = 'block';
   }
 }
 
@@ -163,6 +198,12 @@ async function startGameFlow() {
     name = userNameInput.value.trim();
     if (name) {
       localStorage.setItem('brainTrainUserName', name);
+      // Save IP mapping to Firebase so we recognize them next time!
+      if (useFirebase && db && userIP !== 'unknown') {
+        try {
+          await setDoc(doc(db, "ip_mappings", userIP), { name: name });
+        } catch(e) {}
+      }
     }
   }
   
