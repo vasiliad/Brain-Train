@@ -198,15 +198,19 @@ async function startGameFlow() {
     name = userNameInput.value.trim();
     if (name) {
       localStorage.setItem('brainTrainUserName', name);
-      // Save IP mapping to Firebase so we recognize them next time!
-      if (useFirebase && db && userIP !== 'unknown') {
-        try {
-          await setDoc(doc(db, "ip_mappings", userIP), { name: name });
-        } catch(e) {}
-      }
     }
   }
-  
+
+  // Always (re)save the IP -> name link, including users who already had a
+  // name in localStorage before IP recognition existed.
+  if (name && useFirebase && db && userIP !== 'unknown') {
+    try {
+      await setDoc(doc(db, "ip_mappings", userIP), { name: name, updated: new Date().toISOString() });
+    } catch (e) {
+      console.error("IP mapping save error:", e);
+    }
+  }
+
   if (!name) name = "Гость";
   currentUserName = name;
 
@@ -649,7 +653,9 @@ function setupEventListeners() {
       startNewGame();
     }
     if (e.key === 'r' || e.key === 'R') {
-      if (currentState !== 'inputting' || document.activeElement.tagName !== 'INPUT') {
+      const typing = document.activeElement && document.activeElement.tagName === 'INPUT';
+      const onWelcome = welcomeScreen.style.display !== 'none';
+      if (!typing && !onWelcome) {
         showResultsModal();
       }
     }
