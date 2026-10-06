@@ -510,19 +510,18 @@ function checkAnswer(userInput) {
   saveSessions();
 
   trainerAttempts++;
+  updateStats();
+
   if (isCorrect) {
     // Success! Show info and prepare for next number
     showTrainerSuccess(trainerAttempts);
     trainerCurrentNumber = null; // Will generate new on next round
     trainerAttempts = 0;
+    showResult(true, userInput);
   } else {
-    // Failed - same number again
-    updateAttemptCounter();
+    // Failed - immediately show the number again with highlighted attempt counter
+    startNewGame();
   }
-
-  // Show result with motivational message
-  showResult(isCorrect, userInput);
-  updateStats();
 }
 
 // Show trainer success info

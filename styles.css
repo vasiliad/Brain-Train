@@ -292,6 +292,16 @@ body {
   color: var(--fg-secondary);
 }
 
+@keyframes pulseError {
+  0% { background: rgba(255, 71, 87, 0.4); transform: scale(1); border-color: var(--error); }
+  50% { background: rgba(255, 71, 87, 0.2); transform: scale(1.05); border-color: var(--error); }
+  100% { background: var(--bg-tertiary); transform: scale(1); border-color: var(--border); }
+}
+
+.attempt-counter.highlight {
+  animation: pulseError 0.8s ease-out;
+}
+
 .attempt-counter strong {
   color: var(--warning);
   font-size: 1.2rem;
