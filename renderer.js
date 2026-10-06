@@ -312,43 +312,20 @@ function setState(state) {
   resultState.classList.toggle('active', state === 'result');
 }
 
-// Setup mode selector
+// Setup mode selector - Removed since we only have one mode now
 function setupModeSelector() {
-  modeNormalBtn.addEventListener('click', () => setMode('normal'));
-  modeTrainerBtn.addEventListener('click', () => setMode('trainer'));
-}
-
-function setMode(mode) {
-  gameMode = mode;
-  modeNormalBtn.classList.toggle('active', mode === 'normal');
-  modeTrainerBtn.classList.toggle('active', mode === 'trainer');
-
-  // Reset trainer state when switching modes
-  if (mode === 'normal') {
-    trainerCurrentNumber = null;
-    trainerAttempts = 0;
-  }
-
-  startNewGame();
+  // No-op
 }
 
 // Start new game round
 function startNewGame() {
-  if (gameMode === 'trainer') {
-    // In trainer mode: if we don't have a current number or last attempt was correct, generate new
-    if (trainerCurrentNumber === null) {
-      trainerCurrentNumber = generateNumber();
-      trainerAttempts = 0;
-    }
-    // If last attempt was correct, generate new number for next round
-    // (this is handled in checkAnswer when correct)
-    currentNumber = trainerCurrentNumber;
-  } else {
-    // Normal mode: always new random number
-    currentNumber = generateNumber();
-    trainerCurrentNumber = null;
+  // If we don't have a current number (first game) or last attempt was correct, generate new
+  if (trainerCurrentNumber === null) {
+    trainerCurrentNumber = generateNumber();
     trainerAttempts = 0;
   }
+  
+  currentNumber = trainerCurrentNumber;
 
   displayNumber(currentNumber);
   setState('viewing');
@@ -371,9 +348,9 @@ function startNewGame() {
 
 // Update attempt counter display
 function updateAttemptCounter() {
-  if (gameMode === 'trainer' && trainerCurrentNumber !== null) {
+  if (trainerCurrentNumber !== null && trainerAttempts > 0) {
     attemptCounter.style.display = 'block';
-    attemptCounter.innerHTML = `Попытка: <strong>${trainerAttempts + 1}</strong> (нужно повторить до успеха)`;
+    attemptCounter.innerHTML = `<span style="color: #ff4757; font-weight: bold; font-size: 1.2em;">Попытка: ${trainerAttempts + 1}</span> (нужно повторить до успеха)`;
   } else {
     attemptCounter.style.display = 'none';
   }
@@ -423,23 +400,21 @@ function checkAnswer(userInput) {
     number: currentNumber,
     input: userInput,
     correct: isCorrect,
-    mode: gameMode,
-    attempts: gameMode === 'trainer' ? trainerAttempts + 1 : 1
+    mode: 'trainer',
+    attempts: trainerAttempts + 1
   };
   sessions.push(session);
   saveSessions();
 
-  if (gameMode === 'trainer') {
-    trainerAttempts++;
-    if (isCorrect) {
-      // Success! Show info and prepare for next number
-      showTrainerSuccess(trainerAttempts);
-      trainerCurrentNumber = null; // Will generate new on next round
-      trainerAttempts = 0;
-    } else {
-      // Failed - same number again
-      updateAttemptCounter();
-    }
+  trainerAttempts++;
+  if (isCorrect) {
+    // Success! Show info and prepare for next number
+    showTrainerSuccess(trainerAttempts);
+    trainerCurrentNumber = null; // Will generate new on next round
+    trainerAttempts = 0;
+  } else {
+    // Failed - same number again
+    updateAttemptCounter();
   }
 
   // Show result with motivational message
@@ -458,20 +433,15 @@ function showTrainerSuccess(attempts) {
 function showResult(isCorrect, userInput) {
   setState('result');
 
-  // Determine attempt number for message
-  let attemptNumber = 1;
-  if (gameMode === 'trainer') {
-    attemptNumber = trainerAttempts; // Already incremented in checkAnswer
-  }
+  let attemptNumber = trainerAttempts; // Already incremented in checkAnswer
 
-  // Simple message with attempt indicator for trainer mode
   let message = isCorrect ? 'Правильно!' : 'Неправильно';
-  if (gameMode === 'trainer') {
-    if (isCorrect) {
-      message = `Успешно с ${attemptNumber}-й попытки`;
-    } else if (attemptNumber > 1) {
-      message += ` (${attemptNumber}-я попытка)`;
-    }
+  if (isCorrect) {
+    message = `Успешно с ${attemptNumber}-й попытки`;
+    nextBtn.textContent = 'Следующее число';
+  } else {
+    message += ` (${attemptNumber}-я попытка)`;
+    nextBtn.textContent = 'Попробовать еще раз';
   }
 
   resultDisplay.className = 'result-display ' + (isCorrect ? 'correct' : 'incorrect');
