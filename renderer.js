@@ -365,6 +365,7 @@ function displayNumber(number) {
 
 // Start timer
 function startTimer() {
+  clearInterval(timerInterval);
   timeRemaining = 60;
   updateTimerDisplay();
 
@@ -441,7 +442,6 @@ function startNewGame() {
     input.classList.remove('correct', 'incorrect', 'empty');
     input.disabled = false;
   });
-  inputs[0].focus();
 
   // Hide trainer info
   trainerInfo.style.display = 'none';
@@ -528,7 +528,7 @@ function checkAnswer(userInput) {
 function showTrainerSuccess(attempts) {
   trainerInfo.style.display = 'block';
   trainerInfo.classList.add('success');
-  trainerInfo.innerHTML = `✓ Запомнено с <strong>${attempts}</strong> ${attempts === 1 ? 'попытки' : attempts < 5 ? 'попыток' : 'попыток'}!`;
+  trainerInfo.innerHTML = `✓ Запомнено с <strong>${attempts}</strong>-й попытки!`;
 }
 
 // Show result
